@@ -42,6 +42,10 @@ body, html {
   font-family: Poppins-Regular, sans-serif;  
 }
 
+#Time{
+  color:white;
+}
+
 /*---------------------------------------------*/
 a {
 	font-family: Poppins-Regular;
