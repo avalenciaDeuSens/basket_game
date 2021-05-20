@@ -1,20 +1,33 @@
 <!DOCTYPE html>
-
-<html>
-
+<html lang="en">
+    <base href="./">
     <head>
-        <title>Casademont</title>
-
+        <title>Casademont basket game</title>
+        <meta charset="utf-8">
         <link rel="stylesheet" type="text/css" href="css/styles.css" />
-
-        <script type="text/javascript" src="js/three.min.js"></script>
-        <script type="text/javascript" src="js/stats.js"></script>
-        <script type="text/javascript" src="js/physi.js"></script>
-        <script type="text/javascript" src="main.js"></script>
     </head>
-
     <body>
-        <div id="viewport"></div>
-    </body>
+        <div id="container"></div>
 
+        <script type="text/javascript" src="./js/three.min.js"></script>
+        <script type="text/javascript" src="./js/stats.js"></script>
+        <script type="text/javascript" src="./physi.js"></script>
+        <script type="text/javascript">
+		let container, render_stats, physics_stats;
+		let camera, controls, scene, renderer, ball;
+        let backboardMaterial;     
+        let minForce = 1;
+        let maxForce = 100;   
+        
+        class State{
+            static Waiting = 0;
+            static Down = 1;
+            static Dragging = 2;
+            static Flying = 3;
+        }
+
+        let state = State.Waiting;
+		</script>
+        <script type="text/javascript" src="./main.js"></script>
+    </body>
 </html>
