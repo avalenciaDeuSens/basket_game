@@ -97,7 +97,7 @@ const APP = {
         //fixedTimeStep: APP.isMobile ? 1 / 35 : false
         //fixedTimeStep: false
         //fixedTimeStep: avgDelta
-        fixedTimeStep: APP.isMobile ? 1 / 18 : false
+        fixedTimeStep: 30
         //fixedTimeStep: 1 / 35
         //broadphase: {type: 'dynamic'}
       },

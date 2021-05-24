@@ -2,16 +2,16 @@
 
 <html>
 
-<head>
-	<title>Rigid body - Physijs</title>
-	
-	<link rel="stylesheet" type="text/css" href="css/styles.css" />
-	
-	<script type="text/javascript" src="js/three.min.js"></script>
-	<script type="text/javascript" src="js/stats.js"></script>
-	<script type="text/javascript" src="../physi.js"></script>
-	
-	<script type="text/javascript">
+	<head>
+		<title>Rigid body - Physijs</title>
+
+		<link rel="stylesheet" type="text/css" href="css/styles.css" />
+
+		<script type="text/javascript" src="js/three.min.js"></script>
+		<script type="text/javascript" src="js/stats.js"></script>
+		<script type="text/javascript" src="../physi.js"></script>
+
+		<script type="text/javascript">
 	
 	'use strict';
 	
@@ -93,7 +93,7 @@
 		box_material = Physijs.createMaterial(
 			new THREE.MeshLambertMaterial({ map: loader.load( 'images/plywood.jpg' ) }),
 			.4, // low friction
-			.6 // high restitution
+			1 // high restitution
 		);
 		box_material.map.wrapS = ground_material.map.wrapT = THREE.RepeatWrapping;
 		box_material.map.repeat.set( .25, .25 );
@@ -174,14 +174,14 @@
 	window.onload = initScene;
 	
 	</script>
-</head>
+	</head>
 
-<body>
-	<div id="heading">
-		<h1>Rigid Body + User Interaction</h1>
-		<p>Move your cursor near the boxes to push them.</p>
-	</div>
-	<div id="viewport"></div>
-</body>
+	<body>
+		<div id="heading">
+			<h1>Rigid Body + User Interaction</h1>
+			<p>Move your cursor near the boxes to push them.</p>
+		</div>
+		<div id="viewport"></div>
+	</body>
 
 </html>
