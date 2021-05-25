@@ -53,14 +53,12 @@ let firstBall = true;
 //request variables
 let token;
 let idUser;
-let iframe = parent.document.getElementsByTagName("iframe")[0];
-if (iframe) {
-    const params = new URLSearchParams(iframe.src.split('?')[1]);
+if (window.location.search) {
+    const params = new URLSearchParams(window.location.search);
     idUser = params.get("idusuario");
 }
 else {
-    const params = new URLSearchParams(window.location.search);
-    idUser = params.get("idusuario");
+    idUser = 1;
 }
 
 // - Main code -
