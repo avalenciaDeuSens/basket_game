@@ -52,8 +52,17 @@ let firstBall = true;
 
 //request variables
 let token;
-const params = new URLSearchParams(window.location.search);
-const idUser = params.get("idusuario");
+let idUser;
+let iframe = parent.document.getElementsByTagName("iframe")[0];
+if (iframe) {
+    const params = new URLSearchParams(iframe.src.split('?')[1]);
+    idUser = params.get("idusuario");
+}
+else {
+    const params = new URLSearchParams(window.location.search);
+    idUser = params.get("idusuario");
+}
+
 // - Main code -
 
 window.onload = init;
@@ -486,7 +495,7 @@ function getToken() {
 
 function sendScore() {
     var data = JSON.stringify({
-        "resultado": 300
+        "resultado": score
     });
 
     var xhr = new XMLHttpRequest();
