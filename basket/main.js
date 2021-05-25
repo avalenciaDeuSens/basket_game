@@ -13,40 +13,38 @@ const endClickMouseCoords = new THREE.Vector2();
 const ballMaterial = new Physijs.createMaterial(new THREE.MeshPhongMaterial({
     map: textureLoader.load('images/ball.png'),
     normalMap: textureLoader.load('images/ball_normal.png')
-}), 0.2, 1);
+}), 0.2, 0.9);
 const netMaterial = new THREE.MeshPhongMaterial({
     map: textureLoader.load('images/net4.png'),
     side: THREE.DoubleSide, transparent: true
 });
-//ballMaterial.restitution = 1;
-//const ballMaterial = new THREE.MeshPhongMaterial({
-//    map: textureLoader.load('images/ball.png'),
-//    normalMap: textureLoader.load('images/ball_normal.png')
-//});
-backboardMaterial = new Physijs.createMaterial(new THREE.MeshPhongMaterial({
+const backboardMaterial = new Physijs.createMaterial(new THREE.MeshPhongMaterial({
     map: textureLoader.load('images/backboard.jpg'),
     normalMap: textureLoader.load('images/backboard_normal.jpg'), normalScale: new THREE.Vector2(0.3, 0.3)
 }), 0.6, 1);
 
 const pos = new THREE.Vector3(0, 1.8, 2.5);
-const initBallPos = new THREE.Vector3(0, 1.8, 1);;
+const initBallPos = new THREE.Vector3(0, 1.2, 0);;
 const quat = new THREE.Quaternion();
 const nullG = new THREE.Vector3(0, 0, 0);
 const G = new THREE.Vector3(0, -20, 0);
-const torusPosition = new THREE.Vector3(0, 2.8, -3);
-let maxDrag;
+const torusPosition = new THREE.Vector3(0, 2, -2.3625 + .45 / 2);
+const maxDrag = 2;
 let ballResetTimeout;
 let goalTimeout;
 let allowToChange = true;
-let timeToReallow = 5000;//ms
-let timeToReset = 3000;//ms
+const timeToReallow = 5000;//ms
+const timeToReset = 3000;//ms
 const ballMass = 0.6;
-const ballRadius = 0.295;
+const ballRadius = 0.295 / 2;
 let goal = false;
 const isMobile = navigator.userAgent.match(/(iPhone|iPod|iPad|Android|BlackBerry)/);
 let backboardCollision = false;
 
 let lastDeltas = new Queue();
+let wantToChange = false;
+const wantFramesToShould = 5;
+let framesWanting = 0;
 
 // - Main code -
 
@@ -79,7 +77,7 @@ function initGraphics() {
             physics_stats.update();
         }
     );
-    camera.position.set(0, 2, 3);
+    camera.position.set(0, 1.6, 2);
     camera.lookAt(torusPosition);
 
     renderer = new THREE.WebGLRenderer();
@@ -133,41 +131,42 @@ function createObjects() {
     pos.set(0, - 0.5, 0);
     quat.set(0, 0, 0, 1);
     //ground
-    const groundMaterial = Physijs.createMaterial(new THREE.MeshPhongMaterial({ color: 0xFFFFFF }), 0.6, 1);
-    const ground = createParalellepipedWithPhysics(10, 1, 10, 0, pos, quat, groundMaterial);
+    const groundMaterial = Physijs.createMaterial(new THREE.MeshPhongMaterial({ color: 0xFFFFFF }), 0.6, 0.6);
+    const ground = createParalellepipedWithPhysics(1.55, 0.01, 2.36, 0, new THREE.Vector3(0, -0.005, -2.36 / 2), quat, groundMaterial);
     ground.name = "ground";
     scene.add(ground);
     ground.receiveShadow = true;
     //wall
-    const wall = createParalellepipedWithPhysics(10, 10, 1, 0, new THREE.Vector3(0, 5, -5), quat, groundMaterial);
-    scene.add(wall);
-    wall.receiveShadow = true;
-    wall.name = "wall";
-    //backboard
-    const backboard = createParalellepipedWithPhysics(1.8, 1.12, 0.05, 0, new THREE.Vector3(0, 3.2, -3.5), quat, backboardMaterial);
-    scene.add(backboard);
-    //freezeObject(backboard);
-    backboard.receiveShadow = true;
-    backboard.name = "backboard";
-    //backboard support
-    const backboardSupportMaterial = Physijs.createMaterial(new THREE.MeshPhongMaterial({ color: 0x333333 }), 0.6, 1);
-    const backboardSupport = createCylinder(0.1, 0.1, 0.4, 16, 0, new THREE.Vector3(0, 3.1, -3.7), new THREE.Euler(Math.PI / 2, Math.PI / 2, 0, 0, 'XYZ'), backboardSupportMaterial);
-    scene.add(backboardSupport);
-    backboardSupport.castShadow = true;
-    const poste = createCylinder(0.1, 0.1, 3.1, 16, 0, new THREE.Vector3(0, 3.1 / 2, -3.9), new THREE.Euler(0, Math.PI / 2, 0, 'XYZ'), backboardSupportMaterial);
-    poste.castShadow = true;
-    scene.add(poste);
+    const backwall = createParalellepipedWithPhysics(1.55, 2.75, 0.01, 0, new THREE.Vector3(0, 2.75 / 2, -2.365), quat, groundMaterial);
+    scene.add(backwall);
+    backwall.receiveShadow = true;
+    backwall.name = "backWall";
+    //left wall
+    const leftWall = createParalellepipedWithPhysics(0.01, 2.75, 2.36, 0, new THREE.Vector3(-.725, 2.75 / 2, -2.36 / 2), quat, groundMaterial);
+    scene.add(leftWall);
+    leftWall.receiveShadow = true;
+    leftWall.name = "leftWall";
+    //right wall
+    const rightWall = createParalellepipedWithPhysics(0.01, 2.75, 2.36, 0, new THREE.Vector3(.725, 2.75 / 2, -2.36 / 2), quat, groundMaterial);
+    scene.add(rightWall);
+    rightWall.receiveShadow = true;
+    rightWall.name = "rightWall";
+    ////backboard
+    //const backboard = createParalellepipedWithPhysics(1.8, 1.12, 0.05, 0, new THREE.Vector3(0, 3.2, -2.3625), quat, backboardMaterial);
+    //scene.add(backboard);
+    //backboard.receiveShadow = true;
+    //backboard.name = "backboard";
     //ring
     const torusMaterial = new THREE.MeshPhongMaterial({ color: 0xfe571b });
-    const torus = createTorus(0.45, 0.025, torusPosition, quat.setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0, 'XYZ')), torusMaterial);
+    const torus = createTorus(0.45 / 2, 0.025, torusPosition, quat.setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0, 'XYZ')), torusMaterial);
     torus.receiveShadow = true;
     torus.castShadow = true;
     torus.name = "torus";
     scene.add(torus);
     //net
-    const netPos = new THREE.Vector3(0, -0.375, 0);
+    const netPos = new THREE.Vector3(0, -.75 / 4, 0);
     netPos.add(torusPosition);
-    const net = createCylinderNotPhysic(0.4625, 0.35, .75, 16,
+    const net = createCylinderNotPhysic(0.45 / 2 + .025, 0.45 / 2 - .05, .75 / 2, 16,
         netPos, new THREE.Euler(0, Math.PI / 2, 0, 'XYZ'),
         netMaterial, true);
     scene.add(net);
@@ -300,8 +299,6 @@ function initInput() {
         window.addEventListener('pointerup', onPointerUp);
         window.addEventListener('pointerleave', onPointerUp);
     }
-
-    maxDrag = 2;
 }
 
 function onPointerDown(event) {
@@ -364,20 +361,26 @@ function onWindowResize() {
 
 }
 
-let wantToChange = false;
-let wantFramesToShould = 5;
-let framesWanting = 0;
 function animate() {
-    if (state == State.Flying) {
-        if (ball.position.y < 0 || ball.position.x < -5 || ball.position.x > 5 || ball.position.y > 10) {
-            resetBall();
-        }
-    }
     requestAnimationFrame(animate);
     lastDeltas.enqueue(clock.getDelta());
     if (lastDeltas.length > 10) {
         lastDeltas.dequeue();
     }
+    checkFramerate();
+
+    if (state == State.Waiting) {
+        ball.position.copy(initBallPos);
+    }
+    if (state == State.Flying) {
+        checkGoal();
+    }
+
+    renderer.render(scene, camera);
+    render_stats.update();
+}
+
+function checkFramerate() {
     let deltaSum = 0;
     for (let index = 0; index < lastDeltas.length(); index++) {
         deltaSum += lastDeltas.elements[index];
@@ -399,14 +402,16 @@ function animate() {
         renderer.shadowMap.needsUpdate = true;
         console.log(renderer.shadowMap.enabled ? "Shadows enabled" : "Shadows disabled");
     }
+}
 
-    if (state == State.Waiting) {
-        ball.position.copy(initBallPos);
-    }
+function checkGoal() {
     const BLpos = ball.position;
     const BSpos = torus.position;
 
-    // TODO: Revisar condicion para que detecte también entrada rápida
+    if (ball.position.y < 0 || ball.position.x < -5 || ball.position.x > 5 || ball.position.y > 10) {
+        resetBall();
+    }
+
     if (BLpos.distanceTo(BSpos) < 0.25 && Math.abs(BLpos.y - BSpos.y + 0.25) < 0.25 && !goal) {
         goal = true;
         score += backboardCollision ? 2 : 3;
@@ -414,9 +419,6 @@ function animate() {
         ballResetTimeout = setTimeout(resetBall, 1000);
         console.log("Score");
     }
-
-    renderer.render(scene, camera);
-    render_stats.update();
 }
 
 function reAllow() {
