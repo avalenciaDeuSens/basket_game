@@ -57,7 +57,7 @@ if (window.location.search) {
     const params = new URLSearchParams(window.location.search);
     idUser = params.get("idusuario");
 }
-else {
+if (!idUser) {
     idUser = 1;
 }
 
