@@ -24,7 +24,7 @@ const backboardMaterial = new Physijs.createMaterial(new THREE.MeshPhongMaterial
 }), 0.6, 1);
 
 const pos = new THREE.Vector3(0, 1.8, 2.5);
-const initBallPos = new THREE.Vector3(0, 1.2, 0);;
+const initBallPos = new THREE.Vector3(0, 1.2, 0);
 const quat = new THREE.Quaternion();
 const nullG = new THREE.Vector3(0, 0, 0);
 const G = new THREE.Vector3(0, -20, 0);
@@ -45,6 +45,13 @@ let lastDeltas = new Queue();
 let wantToChange = false;
 const wantFramesToShould = 5;
 let framesWanting = 0;
+const finalScore = document.getElementById("totalScore");
+const currentScore = document.getElementById("score");
+const timeLeft = document.getElementById("timeLeft");
+let firstBall = true;
+
+//request variables
+let token;
 
 // - Main code -
 
@@ -60,6 +67,8 @@ function init() {
 
     initInput();
 
+    getToken();
+
 }
 
 function initGraphics() {
@@ -74,7 +83,6 @@ function initGraphics() {
         'update',
         function () {
             scene.simulate(undefined, 2);
-            physics_stats.update();
         }
     );
     camera.position.set(0, 1.6, 2);
@@ -105,19 +113,6 @@ function initGraphics() {
     light.shadow.mapSize.y = 1024;
 
     scene.add(light);
-
-    render_stats = new Stats();
-    render_stats.domElement.style.position = 'absolute';
-    render_stats.domElement.style.top = '0px';
-    render_stats.domElement.style.zIndex = 100;
-    document.getElementById('container').appendChild(render_stats.domElement);
-
-    physics_stats = new Stats();
-    physics_stats.domElement.style.position = 'absolute';
-    physics_stats.domElement.style.top = '50px';
-    physics_stats.domElement.style.zIndex = 100;
-    document.getElementById('container').appendChild(physics_stats.domElement);
-
     //
 
     window.addEventListener('resize', onWindowResize);
@@ -242,26 +237,13 @@ function createTorus(extRadius, intRadius, pos, quat, material) {
 }
 
 function handleConllision(collided_with, linearVelocity, angularVelocity, normal) {
-    if (collided_with.name.includes("backboard")) {
+    if (collided_with.name.includes("backWall")) {
         backboardCollision = true;
+        console.log("Collision on back wall")
     }
 }
 
-function createFakeBall() {
-    fakeBall = new Physijs.SphereMesh(new THREE.SphereGeometry(ballRadius, 14, 10),
-        ballMaterial, 0);
-    fakeBall.castShadow = true;
-    fakeBall.receiveShadow = true;
-    quat.set(0, 0, 0, 1);
-    fakeBall.position.copy(initBallPos);
-    fakeBall.rotation.setFromQuaternion(quat);
-    scene.add(fakeBall);
-    fakeBall.name = "fakeBall";
-}
-
 function createBall() {
-    // Creates a ball and throws it
-
     ball = new Physijs.SphereMesh(new THREE.SphereGeometry(ballRadius, 14, 10),
         ballMaterial, ballMass);
     ball.castShadow = true;
@@ -283,8 +265,6 @@ function resetBall() {
     backboardCollision = false;
 }
 
-let ballExist = false;
-let collisions = 0;
 function initInput() {
     if (isMobile) {
         console.log("Is mobile")
@@ -377,7 +357,6 @@ function animate() {
     }
 
     renderer.render(scene, camera);
-    render_stats.update();
 }
 
 function checkFramerate() {
@@ -414,11 +393,19 @@ function checkGoal() {
 
     if (BLpos.distanceTo(BSpos) < 0.25 && Math.abs(BLpos.y - BSpos.y + 0.25) < 0.25 && !goal) {
         goal = true;
-        score += backboardCollision ? 2 : 3;
+        let thisScore = backboardCollision ? 2 : 3;
+        score += thisScore;
+        currentScore.innerHTML = thisScore;
+        finalScore.innerHTML = score;
         window.clearTimeout(ballResetTimeout);
+        setTimeout(clearScore, 1000);
         ballResetTimeout = setTimeout(resetBall, 1000);
         console.log("Score");
     }
+}
+
+function clearScore() {
+    currentScore.innerHTML = 0;
 }
 
 function reAllow() {
@@ -435,9 +422,27 @@ function launchBall() {
     let forceToApply = (new THREE.Vector3(dragVector.x / 4, dragVector.y, -dragVector.y / 2)).normalize().multiplyScalar(force);
     ball.applyCentralImpulse(forceToApply);
     ballResetTimeout = setTimeout(resetBall, timeToReset);
+    if (firstBall) {
+        firstBall = false;
+        setTimeout(timerFunction, 1000);
+    }
+}
+
+function timerFunction() {
+    timeLeft.innerHTML = timeLeft.innerHTML - 1;
+    if (timeLeft.innerHTML > 0) {
+        setTimeout(timerFunction, 1000);
+    }
+    else {
+        setState(State.Finished);
+        sendScore();
+    }
 }
 
 function setState(newState) {
+    if (state == State.Finished) {
+        return;
+    }
     switch (newState) {
         case State.Waiting:
             freezeObject(ball);
@@ -447,6 +452,61 @@ function setState(newState) {
             break;
     }
     state = newState;
+}
+
+function getToken() {
+    var data = JSON.stringify({
+        "email": "i@deusens.com",
+        "password": "123456"
+    });
+
+    var xhr = new XMLHttpRequest();
+    xhr.withCredentials = true;
+
+    xhr.addEventListener("readystatechange", function () {
+        if (this.readyState === 4) {
+            console.log(this.responseText);
+        }
+    });
+
+    xhr.open("POST", "https://casademont.deusens.com:8055/auth/login");
+    xhr.setRequestHeader("Content-Type", "application/json");
+
+    xhr.send(data);
+
+    xhr.onload = function () {
+        token = JSON.parse(xhr.response);
+    };
+
+    xhr.onerror = function () { // only triggers if the request couldn't be made at all
+        console.log("Error getting token");
+    };
+}
+
+function sendScore() {
+    var data = JSON.stringify({});
+
+    var xhr = new XMLHttpRequest();
+    xhr.withCredentials = true;
+
+    xhr.addEventListener("readystatechange", function () {
+        if (this.readyState === 4) {
+            console.log(this.responseText);
+        }
+    });
+
+    xhr.open("POST", "");
+    xhr.setRequestHeader("Content-Type", "application/json");
+
+    //xhr.send(data);
+
+    xhr.onload = function () {
+        console.log("");
+    };
+
+    xhr.onerror = function () { // only triggers if the request couldn't be made at all
+        console.log("Error sending score");
+    };
 }
 
 function Queue() {
