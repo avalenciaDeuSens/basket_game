@@ -52,7 +52,8 @@ let firstBall = true;
 
 //request variables
 let token;
-
+const params = new URLSearchParams(window.location.search);
+const idUser = params.get("idusuario");
 // - Main code -
 
 window.onload = init;
@@ -484,7 +485,9 @@ function getToken() {
 }
 
 function sendScore() {
-    var data = JSON.stringify({});
+    var data = JSON.stringify({
+        "resultado": 300
+    });
 
     var xhr = new XMLHttpRequest();
     xhr.withCredentials = true;
@@ -495,13 +498,14 @@ function sendScore() {
         }
     });
 
-    xhr.open("POST", "");
+    xhr.open("PATCH", "https://casademont.deusens.com:8055/items/ranking/" + idUser);
     xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.setRequestHeader("Authorization", "Bearer " + token.data.access_token);
 
-    //xhr.send(data);
+    xhr.send(data);
 
     xhr.onload = function () {
-        console.log("");
+        console.log("Score send");
     };
 
     xhr.onerror = function () { // only triggers if the request couldn't be made at all
