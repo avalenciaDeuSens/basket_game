@@ -25,6 +25,7 @@ const backboardMaterial = new Physijs.createMaterial(new THREE.MeshPhongMaterial
 
 const pos = new THREE.Vector3(0, 1.8, 2.5);
 const initBallPos = new THREE.Vector3(0, 1.2, 0);
+let ballPosition = new THREE.Vector3();
 const quat = new THREE.Quaternion();
 const nullG = new THREE.Vector3(0, 0, 0);
 const G = new THREE.Vector3(0, -20, 0);
@@ -49,6 +50,9 @@ const finalScore = document.getElementById("totalScore");
 const currentScore = document.getElementById("score");
 const timeLeft = document.getElementById("timeLeft");
 let firstBall = true;
+let collisions = 0;
+const maxCollisions = 3;
+const forceSelector = document.getElementById("forceSelector");
 
 //request variables
 let token;
@@ -99,14 +103,14 @@ function initGraphics() {
     renderer = new THREE.WebGLRenderer();
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = !isMobile;
+    renderer.shadowMap.enabled = true;//!isMobile;
     container.appendChild(renderer.domElement);
 
     const ambientLight = new THREE.AmbientLight(0x707070);
     scene.add(ambientLight);
 
     const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(0, 18, 5);
+    light.position.set(0, 18, 10);
     light.castShadow = true;
     const d = 14;
     light.shadow.camera.left = - d;
@@ -245,9 +249,15 @@ function createTorus(extRadius, intRadius, pos, quat, material) {
 }
 
 function handleConllision(collided_with, linearVelocity, angularVelocity, normal) {
+    if (collided_with.name.includes("ringPart")) {
+        return;
+    }
     if (collided_with.name.includes("backWall")) {
         backboardCollision = true;
-        console.log("Collision on back wall")
+    }
+    collisions++;
+    if (collisions > maxCollisions) {
+        resetBall();
     }
 }
 
@@ -258,6 +268,7 @@ function createBall() {
     ball.receiveShadow = true;
     quat.set(0, 0, 0, 1);
     ball.position.copy(initBallPos);
+    ballPosition.copy(initBallPos);
     ball.rotation.setFromQuaternion(quat);
     scene.add(ball);
     ball.addEventListener('collision', handleConllision);
@@ -266,11 +277,15 @@ function createBall() {
 
 function resetBall() {
     setState(State.Waiting);
-    ball.position.copy(initBallPos);
+    let noise = (new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5)).normalize().multiplyScalar(Math.random() * 0.5);
+    ballPosition.copy(initBallPos).add(noise);
+    console.log(ballPosition);
+    ball.position.copy(ballPosition);
     ball.rotation.setFromQuaternion(quat);
     ball.__dirtyPosition = true;
     window.clearTimeout(ballResetTimeout);
     backboardCollision = false;
+    collisions = 0;
 }
 
 function initInput() {
@@ -351,20 +366,31 @@ function onWindowResize() {
 
 function animate() {
     requestAnimationFrame(animate);
-    lastDeltas.enqueue(clock.getDelta());
+    let dt = clock.getDelta();
+    lastDeltas.enqueue(dt);
     if (lastDeltas.length > 10) {
         lastDeltas.dequeue();
     }
     checkFramerate();
 
     if (state == State.Waiting) {
-        ball.position.copy(initBallPos);
+        ball.position.copy(ballPosition);
+        moveSelector(dt);
     }
     if (state == State.Flying) {
         checkGoal();
     }
-
     renderer.render(scene, camera);
+}
+
+let time = 0;
+let forceModifier = 1;
+function moveSelector(dt) {
+    time += dt;
+    let sinTime = Math.sin(time);
+    forceModifier = 1 + sinTime;
+    let t = sinTime / 2 + 0.5;
+    forceSelector.style.top = t * 19.75 + "vh";
 }
 
 function checkFramerate() {
@@ -426,9 +452,10 @@ function launchBall() {
     const dragVector = endClickMouseCoords.sub(clickMouseCoords);
     const clampedValue = Math.max(Math.min(dragVector.length() / maxDrag, 1), 0);
     const force = (clampedValue) * (maxForce - minForce) + minForce;
-    //console.log("Force applied: " + force);
     let forceToApply = (new THREE.Vector3(dragVector.x / 4, dragVector.y, -dragVector.y / 2)).normalize().multiplyScalar(force);
-    ball.applyCentralImpulse(forceToApply);
+    console.log(forceModifier);
+    console.log()
+    ball.applyCentralImpulse(forceToApply.multiplyScalar(forceModifier));
     ballResetTimeout = setTimeout(resetBall, timeToReset);
     if (firstBall) {
         firstBall = false;
@@ -444,7 +471,7 @@ function timerFunction() {
     else {
         setState(State.Finished);
         sendScore();
-        parent.gameFinished();
+        parent.gameFinished(score);
     }
 }
 

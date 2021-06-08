@@ -30,3 +30,24 @@ table {
 	font-family: digital7;
 	src: url(../fonts/digital-7.ttf);
   }
+
+  #forceMeter {
+	background-color: red; /* For browsers that do not support gradients */
+	border-radius: 1rem;
+	width: 2.5vw;
+	height: 20vh;
+	border: 2px solid black;
+	position: absolute;
+	top: 40vh;
+	right: 2.5vw;
+	background-image: linear-gradient(red , yellow , yellow , green ,yellow , yellow , red );
+  }
+
+  #forceSelector{
+	height: 0.25vh;
+	background-color: black;
+	width:2.5vw;
+	border-radius: 0.5rem;
+	right:0;
+	position: relative;
+  }
