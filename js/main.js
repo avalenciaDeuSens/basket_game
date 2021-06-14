@@ -25,6 +25,11 @@ let forceModifier = 1;
 let token;
 let idUser;
 
+parent.setUser = function (user) {
+    idUser = user;
+    console.log("User set to " + user)
+}
+
 // - Main code -
 
 window.onload = init;
@@ -47,10 +52,11 @@ function init() {
 
     getToken();
 
+    parent.gameLoaded();
 }
 
+//Create the scene and the lights
 function initGraphics() {
-
     container = document.getElementById('container');
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.2, 2000);
     scene = new Physijs.Scene({ fixedTimeStep: fixedDelta });
@@ -96,6 +102,7 @@ function initGraphics() {
     scene.simulate();
 }
 
+//create the objects in the scene
 function createObjects() {
 
     //ground
@@ -136,6 +143,7 @@ function unFreezeObject(object) {
     object.setLinearFactor(new THREE.Vector3(1, 1, 1));
 }
 
+//Called when a collision happens
 function handleConllision(collided_with, linearVelocity, angularVelocity, normal) {
     if (collided_with.name.includes("ringPart")) {
         return;
@@ -163,6 +171,7 @@ function createBall() {
     ball.name = "ball";
 }
 
+//reset the ball and asign a random position in an spheric area around the initial ball position
 function resetBall() {
     setState(State.Waiting);
     let noise = (new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5)).normalize().multiplyScalar(Math.random() * 0.5);
@@ -177,15 +186,14 @@ function resetBall() {
 }
 
 function onWindowResize() {
-
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-
 }
 
 function animate() {
     requestAnimationFrame(animate);
+    //store the last 10 deltas to check the frame rate
     let dt = clock.getDelta();
     lastDeltas.enqueue(dt);
     if (lastDeltas.length > 10) {
@@ -203,14 +211,17 @@ function animate() {
     renderer.render(scene, camera);
 }
 
+//move the force selector up and down with a sinusoidal function
 function moveSelector(dt) {
     time += dt;
-    let sinTime = Math.sin(time);
+    let sinTime = Math.sin(2 * time);
     forceModifier = 1 + sinTime;
     let t = sinTime / 2 + 0.5;
     forceSelector.style.top = t * 19.75 + "vh";
 }
 
+//depending on the framerate it enables or disables the shadows to increase the performance or to increase the fidelity
+//to avoid changing to much, it waits some frames to see if the framerate stabilized
 function checkFramerate() {
     let deltaSum = 0;
     for (let index = 0; index < lastDeltas.length(); index++) {
@@ -264,6 +275,7 @@ function reAllow() {
     allowToChange = true;
 }
 
+//get the force modifier from the force selector and apply it to the drag
 function launchBall() {
     setState(State.Flying);
     goal = false;
@@ -279,6 +291,7 @@ function launchBall() {
     }
 }
 
+//change the timer each second, when it reaches 0, it notifies the end
 function timerFunction() {
     timeLeft.innerHTML = timeLeft.innerHTML - 1;
     if (timeLeft.innerHTML > 0) {

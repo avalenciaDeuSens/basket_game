@@ -24,8 +24,10 @@ function createCylinderNotPhysic(infRad, supRad, height, divisions, pos, euler, 
     return object;
 }
 
+//creates a toroid
 function createTorus(extRadius, intRadius, pos, quat, material) {
     const fragments = 32;
+    //the visible part has no physics
     torus = new THREE.Mesh(new THREE.TorusGeometry(extRadius, intRadius, fragments, fragments), material);
     torus.position.copy(pos);
     torus.rotation.setFromQuaternion(quat);
@@ -36,6 +38,7 @@ function createTorus(extRadius, intRadius, pos, quat, material) {
     const angle = (2 * Math.PI) / fragments;
     const cylinderGeometry = new THREE.CylinderGeometry(intRadius, intRadius, fragSize, fragments);
     const cylinderMaterial = new THREE.MeshPhongMaterial({ color: 0xCCCCCC });
+    //the physical part is invisible, there are cylinders in a circle to simulate a toroid
     for (let index = 0; index < fragments; index++) {
         let object = new Physijs.CylinderMesh(cylinderGeometry, cylinderMaterial, 0);
         object.visible = false;

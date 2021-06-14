@@ -1,0 +1,17 @@
+Con Three.js creamos un escenario simple simulando una cancha arcade de baloncesto
+Hay un medidor con un indicador desplazandose arriba y abajo. dependiendo de la posición del indicador
+en el momento que se comienza el gesto de lanzamiento se le aplica un modificador a la fuerza de lanzamiento.
+En el centro la fuerza es nula, hacia arriba la incrementa y hacia abajo la reduce.
+La furza inicial aplicada a la pelota depende de cuanto se desplaza el dedo sobre la pantalla en el eje vertical.
+dependiendo de cuanto se desplace en el eje horizontal, el lanzamiento se desvía hacia un lado o hacia el otro.
+si la pelota colisiona con la pared antes de entrar por la canasta, vale 2 puntos, en caso contrario vale 3.
+para mantener la pelota bloqueada mientras esta esperando, primera se la congela y luego se le coloca en la posición
+que le toque en cada frame. Esto se ha hecho así por que sino daba problemas y se movia la pelota.
+
+En cuanto al escenario, el anillo de la canasta consta de 2 partes, la parte visible es un toroide
+pero cuenta con una parte invisible que es la que tiene físicas. Esta parte es compuesta por pequeños cilindros 
+colocados a lo largo del toroide.
+
+El estilo del medidor esta hecho con css pero el movimiento esta hecho con js.
+
+la pagina recibe el usuario
