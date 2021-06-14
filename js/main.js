@@ -1,69 +1,29 @@
 'use strict';
-let torus;
 Physijs.scripts.worker = './js/physijs_worker.js';
 Physijs.scripts.ammo = './ammo.js';
 
-let textureLoader = new THREE.TextureLoader();
-const clock = new THREE.Clock();
-let delta = 1 / 60;
 let fixedDelta = 1 / 30;
 
-const clickMouseCoords = new THREE.Vector2();
-const endClickMouseCoords = new THREE.Vector2();
-const ballMaterial = new Physijs.createMaterial(new THREE.MeshPhongMaterial({
-    map: textureLoader.load('images/ball.png'),
-    normalMap: textureLoader.load('images/ball_normal.png')
-}), 0.2, 0.9);
-const netMaterial = new THREE.MeshPhongMaterial({
-    map: textureLoader.load('images/net4.png'),
-    side: THREE.DoubleSide, transparent: true
-});
-const backboardMaterial = new Physijs.createMaterial(new THREE.MeshPhongMaterial({
-    map: textureLoader.load('images/backboard.jpg'),
-    normalMap: textureLoader.load('images/backboard_normal.jpg'), normalScale: new THREE.Vector2(0.3, 0.3)
-}), 0.6, 1);
-
-const pos = new THREE.Vector3(0, 1.8, 2.5);
-const initBallPos = new THREE.Vector3(0, 1.2, 0);
 let ballPosition = new THREE.Vector3();
-const quat = new THREE.Quaternion();
-const nullG = new THREE.Vector3(0, 0, 0);
-const G = new THREE.Vector3(0, -20, 0);
-const torusPosition = new THREE.Vector3(0, 2, -2.3625 + .45 / 2);
-const maxDrag = 2;
-let ballResetTimeout;
-let goalTimeout;
-let allowToChange = true;
-const timeToReallow = 5000;//ms
-const timeToReset = 3000;//ms
-const ballMass = 0.6;
-const ballRadius = 0.295 / 2;
-let goal = false;
-const isMobile = navigator.userAgent.match(/(iPhone|iPod|iPad|Android|BlackBerry)/);
-let backboardCollision = false;
 
+let torus;
+let ballResetTimeout;
+let allowToChange = true;
+
+let goal = false;
+let backboardCollision = false;
+//fps control
 let lastDeltas = new Queue();
 let wantToChange = false;
-const wantFramesToShould = 5;
 let framesWanting = 0;
-const finalScore = document.getElementById("totalScore");
-const currentScore = document.getElementById("score");
-const timeLeft = document.getElementById("timeLeft");
 let firstBall = true;
 let collisions = 0;
-const maxCollisions = 3;
-const forceSelector = document.getElementById("forceSelector");
-
+//force modification
+let time = 0;
+let forceModifier = 1;
 //request variables
 let token;
 let idUser;
-if (window.location.search) {
-    const params = new URLSearchParams(window.location.search);
-    idUser = params.get("idusuario");
-}
-if (!idUser) {
-    idUser = 1;
-}
 
 // - Main code -
 
@@ -72,7 +32,13 @@ window.onload = init;
 // - Functions -
 
 function init() {
-
+    if (window.location.search) {
+        const params = new URLSearchParams(window.location.search);
+        idUser = params.get("idusuario");
+    }
+    if (!idUser) {
+        idUser = 1;
+    }
     initGraphics();
 
     createObjects();
@@ -86,9 +52,7 @@ function init() {
 function initGraphics() {
 
     container = document.getElementById('container');
-
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.2, 2000);
-
     scene = new Physijs.Scene({ fixedTimeStep: fixedDelta });
     scene.setGravity(G);
     scene.addEventListener(
@@ -134,44 +98,22 @@ function initGraphics() {
 
 function createObjects() {
 
-    // Ground
-    pos.set(0, - 0.5, 0);
-    quat.set(0, 0, 0, 1);
     //ground
-    const groundMaterial = Physijs.createMaterial(new THREE.MeshPhongMaterial({ color: 0xFFFFFF }), 0.6, 0.6);
-    const ground = createParalellepipedWithPhysics(1.55, 0.01, 2.36, 0, new THREE.Vector3(0, -0.005, -2.36 / 2), quat, groundMaterial);
-    ground.name = "ground";
-    scene.add(ground);
-    ground.receiveShadow = true;
+    createParalellepipedWithPhysics(1.55, 0.01, 2.36, 0, new THREE.Vector3(0, -0.005, -2.36 / 2), quat, groundMaterial, "ground");
     //wall
-    const backwall = createParalellepipedWithPhysics(1.55, 2.75, 0.01, 0, new THREE.Vector3(0, 2.75 / 2, -2.365), quat, groundMaterial);
-    scene.add(backwall);
-    backwall.receiveShadow = true;
-    backwall.name = "backWall";
+    createParalellepipedWithPhysics(1.55, 2.75, 0.01, 0, new THREE.Vector3(0, 2.75 / 2, -2.365), quat, groundMaterial, "wall");
     //left wall
-    const leftWall = createParalellepipedWithPhysics(0.01, 2.75, 2.36, 0, new THREE.Vector3(-.725, 2.75 / 2, -2.36 / 2), quat, groundMaterial);
-    scene.add(leftWall);
-    leftWall.receiveShadow = true;
-    leftWall.name = "leftWall";
+    createParalellepipedWithPhysics(0.01, 2.75, 2.36, 0, new THREE.Vector3(-.725, 2.75 / 2, -2.36 / 2), quat, groundMaterial, "leftWall");
     //right wall
-    const rightWall = createParalellepipedWithPhysics(0.01, 2.75, 2.36, 0, new THREE.Vector3(.725, 2.75 / 2, -2.36 / 2), quat, groundMaterial);
-    scene.add(rightWall);
-    rightWall.receiveShadow = true;
-    rightWall.name = "rightWall";
-    ////backboard
-    //const backboard = createParalellepipedWithPhysics(1.8, 1.12, 0.05, 0, new THREE.Vector3(0, 3.2, -2.3625), quat, backboardMaterial);
-    //scene.add(backboard);
-    //backboard.receiveShadow = true;
-    //backboard.name = "backboard";
+    createParalellepipedWithPhysics(0.01, 2.75, 2.36, 0, new THREE.Vector3(.725, 2.75 / 2, -2.36 / 2), quat, groundMaterial, "rightWall");
     //ring
-    const torusMaterial = new THREE.MeshPhongMaterial({ color: 0xfe571b });
     const torus = createTorus(0.45 / 2, 0.025, torusPosition, quat.setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0, 'XYZ')), torusMaterial);
     torus.receiveShadow = true;
     torus.castShadow = true;
     torus.name = "torus";
     scene.add(torus);
     //net
-    const netPos = new THREE.Vector3(0, -.75 / 4, 0);
+    let netPos = new THREE.Vector3(0, -.75 / 4, 0);
     netPos.add(torusPosition);
     const net = createCylinderNotPhysic(0.45 / 2 + .025, 0.45 / 2 - .05, .75 / 2, 16,
         netPos, new THREE.Euler(0, Math.PI / 2, 0, 'XYZ'),
@@ -192,60 +134,6 @@ function freezeObject(object) {
 function unFreezeObject(object) {
     object.setAngularFactor(new THREE.Vector3(1, 1, 1));
     object.setLinearFactor(new THREE.Vector3(1, 1, 1));
-}
-
-function createParalellepipedWithPhysics(sx, sy, sz, mass, pos, quat, material) {
-    const object = new Physijs.BoxMesh(new THREE.BoxGeometry(sx, sy, sz, 1, 1, 1), material, mass);
-    object.position.copy(pos);
-    object.rotation.setFromQuaternion(quat);
-    return object;
-}
-
-function createCylinder(infRad, supRad, height, divisions, mass, pos, euler, material, open) {
-    const object = new Physijs.CylinderMesh(
-        new THREE.CylinderGeometry(infRad, supRad, height, divisions, 1, open),
-        material, mass);
-    object.position.copy(pos);
-    object.rotation.copy(euler);
-    return object;
-}
-
-function createCylinderNotPhysic(infRad, supRad, height, divisions, pos, euler, material, open) {
-    const object = new THREE.Mesh(new THREE.CylinderGeometry(infRad, supRad, height, divisions, 1, open),
-        material);
-    object.position.copy(pos);
-    object.rotation.copy(euler);
-    return object;
-}
-
-function createTorus(extRadius, intRadius, pos, quat, material) {
-    const fragments = 32;
-    torus = new THREE.Mesh(new THREE.TorusGeometry(extRadius, intRadius, fragments, fragments), material);
-    torus.position.copy(pos);
-    torus.rotation.setFromQuaternion(quat);
-
-    const fragSize = 2 * Math.PI * extRadius / fragments * 1.1;
-    const baseVector = new THREE.Vector3(0, 0, extRadius - 0.005);
-    const yVector = new THREE.Vector3(0, 1, 0);
-    const angle = (2 * Math.PI) / fragments;
-    for (let index = 0; index < fragments; index++) {
-        let object = new Physijs.CylinderMesh(
-            new THREE.CylinderGeometry(intRadius, intRadius, fragSize, fragments),
-            new THREE.MeshPhongMaterial({ color: 0xCCCCCC }), 0);
-        object.visible = false;
-        let newPos = new THREE.Vector3();
-        newPos.copy(pos);
-        if (index != 0)
-            newPos.add(baseVector.applyAxisAngle(yVector, angle));
-        else
-            newPos.add(baseVector);
-        object.position.copy(newPos);
-        object.rotation.setFromQuaternion(quat.setFromEuler(new THREE.Euler(0, angle * index, Math.PI / 2, 0, 'XYZ')));
-        scene.add(object);
-        object.name = "ringPart" + index;
-        freezeObject(object);
-    }
-    return torus;
 }
 
 function handleConllision(collided_with, linearVelocity, angularVelocity, normal) {
@@ -288,78 +176,10 @@ function resetBall() {
     collisions = 0;
 }
 
-function initInput() {
-    if (isMobile) {
-        console.log("Is mobile")
-        window.addEventListener('touchmove', onPointerMove, false);
-        window.addEventListener('touchstart', onTouchDown, false);
-        window.addEventListener('touchend', onTouchUp, false);
-    }
-    else {
-        console.log("Not mobile")
-        window.addEventListener('pointermove', onPointerMove);
-        window.addEventListener('pointerdown', onPointerDown);
-        window.addEventListener('pointerup', onPointerUp);
-        window.addEventListener('pointerleave', onPointerUp);
-    }
-}
-
-function onPointerDown(event) {
-    if (state != State.Waiting) {
-        return;
-    }
-    setState(State.Down);
-    clickMouseCoords.set(
-        (event.clientX / window.innerWidth) * 2 - 1,
-        - (event.clientY / window.innerHeight) * 2 + 1
-    );
-}
-
-function onTouchDown(event) {
-    if (state != State.Waiting) {
-        return;
-    }
-    setState(State.Down);
-    clickMouseCoords.set(
-        (event.targetTouches[0].clientX / window.innerWidth) * 2 - 1,
-        - (event.targetTouches[0].clientY / window.innerHeight) * 2 + 1
-    );
-}
-
-function onPointerUp(event) {
-    if (state != State.Dragging && state != State.Down) {
-        return;
-    }
-    endClickMouseCoords.set(
-        (event.clientX / window.innerWidth) * 2 - 1,
-        - (event.clientY / window.innerHeight) * 2 + 1
-    );
-    launchBall();
-}
-
-function onTouchUp(event) {
-    if (state != State.Dragging && state != State.Down) {
-        return;
-    }
-    endClickMouseCoords.set(
-        (event.changedTouches[0].clientX / window.innerWidth) * 2 - 1,
-        - (event.changedTouches[0].clientY / window.innerHeight) * 2 + 1
-    );
-    launchBall();
-}
-
-function onPointerMove(event) {
-    if (state != State.Down) {
-        return;
-    }
-    setState(State.Dragging);
-}
-
 function onWindowResize() {
 
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
-
     renderer.setSize(window.innerWidth, window.innerHeight);
 
 }
@@ -383,8 +203,6 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-let time = 0;
-let forceModifier = 1;
 function moveSelector(dt) {
     time += dt;
     let sinTime = Math.sin(time);
@@ -453,8 +271,6 @@ function launchBall() {
     const clampedValue = Math.max(Math.min(dragVector.length() / maxDrag, 1), 0);
     const force = (clampedValue) * (maxForce - minForce) + minForce;
     let forceToApply = (new THREE.Vector3(dragVector.x / 4, dragVector.y, -dragVector.y / 2)).normalize().multiplyScalar(force);
-    console.log(forceModifier);
-    console.log()
     ball.applyCentralImpulse(forceToApply.multiplyScalar(forceModifier));
     ballResetTimeout = setTimeout(resetBall, timeToReset);
     if (firstBall) {
@@ -488,64 +304,6 @@ function setState(newState) {
             break;
     }
     state = newState;
-}
-
-function getToken() {
-    var data = JSON.stringify({
-        "email": "i@deusens.com",
-        "password": "123456"
-    });
-
-    var xhr = new XMLHttpRequest();
-    xhr.withCredentials = true;
-
-    xhr.addEventListener("readystatechange", function () {
-        if (this.readyState === 4) {
-            console.log(this.responseText);
-        }
-    });
-
-    xhr.open("POST", "https://casademont.deusens.com:8055/auth/login");
-    xhr.setRequestHeader("Content-Type", "application/json");
-
-    xhr.send(data);
-
-    xhr.onload = function () {
-        token = JSON.parse(xhr.response);
-    };
-
-    xhr.onerror = function () { // only triggers if the request couldn't be made at all
-        console.log("Error getting token");
-    };
-}
-
-function sendScore() {
-    var data = JSON.stringify({
-        "resultado": score
-    });
-
-    var xhr = new XMLHttpRequest();
-    xhr.withCredentials = true;
-
-    xhr.addEventListener("readystatechange", function () {
-        if (this.readyState === 4) {
-            console.log(this.responseText);
-        }
-    });
-
-    xhr.open("PATCH", "https://casademont.deusens.com:8055/items/ranking/" + idUser);
-    xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.setRequestHeader("Authorization", "Bearer " + token.data.access_token);
-
-    xhr.send(data);
-
-    xhr.onload = function () {
-        console.log("Score send");
-    };
-
-    xhr.onerror = function () { // only triggers if the request couldn't be made at all
-        console.log("Error sending score");
-    };
 }
 
 function Queue() {
