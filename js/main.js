@@ -1,6 +1,53 @@
 'use strict';
+
+
+//import { FBXLoader } from './FBXLoader.js';
+
 Physijs.scripts.worker = './js/physijs_worker.js';
 Physijs.scripts.ammo = './ammo.js';
+
+//Constants
+const clock = new THREE.Clock();
+const textureLoader = new THREE.TextureLoader();
+const ballMaterial = new Physijs.createMaterial(new THREE.MeshPhongMaterial({ color: 0x00000000, transparent: true, opacity: 0 }), 0.2, 0.9);
+const netMaterial = new THREE.MeshPhongMaterial({
+    map: textureLoader.load('images/net4.png'),
+    side: THREE.DoubleSide, transparent: true
+});
+const backboardMaterial = new Physijs.createMaterial(
+    new THREE.MeshPhongMaterial({
+        map: textureLoader.load('images/backboard.jpg'),
+        normalMap: textureLoader.load('images/backboard_normal.jpg'),
+        normalScale: new THREE.Vector2(0.3, 0.3)
+    }), 0.6, 1);
+const groundMaterial = Physijs.createMaterial(new THREE.MeshPhongMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0 }), 0.6, 0.6);
+const torusMaterial = new THREE.MeshPhongMaterial({ color: 0xfe571b });
+
+const clickMouseCoords = new THREE.Vector2();
+const endClickMouseCoords = new THREE.Vector2();
+
+const quat = new THREE.Quaternion();
+const pos = new THREE.Vector3(0, 1.8, 2.5);
+const initBallPos = new THREE.Vector3(0, .5, 0);
+const torusPosition = new THREE.Vector3(0, 2.015, -2);
+const G = new THREE.Vector3(0, -20, 0);
+
+const maxDrag = 2;
+const timeToReallow = 5000;//ms
+const timeToReset = 3000;//ms
+const ballMass = 0.6;
+const ballRadius = 0.295 / 2;
+const wantFramesToShould = 5;
+const maxCollisions = 3;
+
+const isMobile = navigator.userAgent.match(/(iPhone|iPod|iPad|Android|BlackBerry)/);
+
+const finalScore = document.getElementById("totalScore");
+const currentScore = document.getElementById("score");
+const timeLeft = document.getElementById("timeLeft");
+const forceSelector = document.getElementById("forceSelector");
+
+//const loader = new FBXLoader();
 
 let fixedDelta = 1 / 30;
 
@@ -24,6 +71,9 @@ let forceModifier = 1;
 //request variables
 let token;
 let idUser;
+let ballModel;
+
+let wallB, wallR, wallL, ground, backboard, incBorderL, incBorderR, borderL, borderR, ground2;
 
 parent.setUser = function (user) {
     idUser = user;
@@ -50,9 +100,7 @@ function init() {
 
     initInput();
 
-    getToken();
-
-    parent.gameLoaded();
+    //getToken();
 }
 
 //Create the scene and the lights
@@ -67,13 +115,13 @@ function initGraphics() {
             scene.simulate(undefined, 2);
         }
     );
-    camera.position.set(0, 1.6, 2);
-    camera.lookAt(torusPosition);
+    camera.position.set(0, 0.75, 2);
+    //camera.lookAt(torusPosition);
 
     renderer = new THREE.WebGLRenderer();
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;//!isMobile;
+    renderer.shadowMap.enabled = false;//!isMobile;
     container.appendChild(renderer.domElement);
 
     const ambientLight = new THREE.AmbientLight(0x707070);
@@ -81,18 +129,18 @@ function initGraphics() {
 
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(0, 18, 10);
-    light.castShadow = true;
-    const d = 14;
-    light.shadow.camera.left = - d;
-    light.shadow.camera.right = d;
-    light.shadow.camera.top = d;
-    light.shadow.camera.bottom = - d;
+    light.castShadow = false;
+    //const d = 14;
+    //light.shadow.camera.left = - d;
+    //light.shadow.camera.right = d;
+    //light.shadow.camera.top = d;
+    //light.shadow.camera.bottom = - d;
 
-    light.shadow.camera.near = 2;
-    light.shadow.camera.far = 50;
+    //light.shadow.camera.near = 2;
+    //light.shadow.camera.far = 50;
 
-    light.shadow.mapSize.x = 1024;
-    light.shadow.mapSize.y = 1024;
+    //light.shadow.mapSize.x = 1024;
+    //light.shadow.mapSize.y = 1024;
 
     scene.add(light);
     //
@@ -105,16 +153,33 @@ function initGraphics() {
 //create the objects in the scene
 function createObjects() {
 
-    //ground
-    createParalellepipedWithPhysics(1.55, 0.01, 2.36, 0, new THREE.Vector3(0, -0.005, -2.36 / 2), quat, groundMaterial, "ground");
-    //wall
-    createParalellepipedWithPhysics(1.55, 2.75, 0.01, 0, new THREE.Vector3(0, 2.75 / 2, -2.365), quat, groundMaterial, "wall");
-    //left wall
-    createParalellepipedWithPhysics(0.01, 2.75, 2.36, 0, new THREE.Vector3(-.725, 2.75 / 2, -2.36 / 2), quat, groundMaterial, "leftWall");
-    //right wall
-    createParalellepipedWithPhysics(0.01, 2.75, 2.36, 0, new THREE.Vector3(.725, 2.75 / 2, -2.36 / 2), quat, groundMaterial, "rightWall");
+    loadModels();
+    createColliders();
+
+    //basket
+    createrBasket();
+
+    createBall();
+    freezeObject(ball);
+}
+
+function loadModels() {
+    const loader = new THREE.GLTFLoader().setPath('models/');
+    loader.load('basket_machine.gltf', function (gltf) {
+        scenario = gltf.scene.children[0];
+        scene.add(scenario);
+        scenario.rotation.y = Math.PI / 180 * -90;
+        scenario.position.set(0, 0.25, -2.5);
+
+        parent.gameLoaded();
+    }, undefined, function (e) {
+        console.error(e);
+    });
+}
+
+function createBasket() {
     //ring
-    const torus = createTorus(0.45 / 2, 0.025, torusPosition, quat.setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0, 'XYZ')), torusMaterial);
+    const torus = createTorus(0.25, 0.01, torusPosition, quat.setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0, 'XYZ')), torusMaterial);
     torus.receiveShadow = true;
     torus.castShadow = true;
     torus.name = "torus";
@@ -126,9 +191,29 @@ function createObjects() {
         netPos, new THREE.Euler(0, Math.PI / 2, 0, 'XYZ'),
         netMaterial, true);
     scene.add(net);
+}
 
-    createBall();
-    freezeObject(ball);
+function createColliders() {
+    //ground
+    ground = createParalellepipedWithPhysics(2, 0.01, 2.4, 0, new THREE.Vector3(0, 0.18, -0.85), quat.setFromEuler(new THREE.Euler(Math.PI / 180 * 27.2, 0, 0, 'XYZ')), groundMaterial, "ground");
+    //wall
+    wallB = createParalellepipedWithPhysics(2, 3.15, 0.01, 0, new THREE.Vector3(0, 3.15 / 2, -2.325), quat.set(0, 0, 0, 1), groundMaterial, "wall");
+    //left wall
+    wallL = createParalellepipedWithPhysics(0.01, 3.15, 3, 0, new THREE.Vector3(-1, 3.15 / 2, -1), quat, groundMaterial, "leftWall");
+    //right wall
+    wallR = createParalellepipedWithPhysics(0.01, 3.15, 3, 0, new THREE.Vector3(1, 3.15 / 2, -1), quat, groundMaterial, "rightWall");
+    //backboard
+    backboard = createParalellepipedWithPhysics(0.9, 0.69, 0.01, 0, new THREE.Vector3(0, 2.28, -2.25), quat, groundMaterial, "backboard");
+    //borde inclinado l
+    incBorderL = createParalellepipedWithPhysics(0.2, 0.69, 1.5, 0, new THREE.Vector3(-.9, .91, -1.85), quat.setFromEuler(new THREE.Euler(Math.PI / 180 * 26.65, 0, 0, 'XYZ')), groundMaterial, "incBorderL");
+    //borde inclinado r
+    incBorderR = createParalellepipedWithPhysics(0.2, 0.69, 1.5, 0, new THREE.Vector3(.9, .91, -1.85), quat, groundMaterial, "incBorderR");
+    //borderL
+    borderL = createParalellepipedWithPhysics(0.2, 2, 1.5, 0, new THREE.Vector3(-.9, -.115, -.58), quat.setFromEuler(new THREE.Euler(0, 0, 0, 'XYZ')), groundMaterial, "borderR");
+    //borderR
+    borderR = createParalellepipedWithPhysics(0.2, 2, 1.5, 0, new THREE.Vector3(.9, -.115, -.58), quat, groundMaterial, "borderL");
+    //ground2
+    ground2 = createParalellepipedWithPhysics(2, 0.01, 0.5, 0, new THREE.Vector3(0, .72, -2.2), quat, groundMaterial, "ground2");
 }
 
 function freezeObject(object) {
@@ -148,8 +233,9 @@ function handleConllision(collided_with, linearVelocity, angularVelocity, normal
     if (collided_with.name.includes("ringPart")) {
         return;
     }
-    if (collided_with.name.includes("backWall")) {
+    if (collided_with.name.includes("backWall") || collided_with.name.includes("backboard")) {
         backboardCollision = true;
+        return;
     }
     collisions++;
     if (collisions > maxCollisions) {
@@ -160,8 +246,16 @@ function handleConllision(collided_with, linearVelocity, angularVelocity, normal
 function createBall() {
     ball = new Physijs.SphereMesh(new THREE.SphereGeometry(ballRadius, 14, 10),
         ballMaterial, ballMass);
-    ball.castShadow = true;
-    ball.receiveShadow = true;
+
+    const loader = new THREE.GLTFLoader().setPath('models/');
+    loader.load('basket_ball.gltf', function (gltf) {
+        ballModel = gltf.scene.children[0];
+        ball.add(ballModel);
+        ballModel.position.set(0, 0, 0);
+        ball.scale.set(0.3, 0.3, 0.3);
+    }, undefined, function (e) {
+        console.error(e);
+    });
     quat.set(0, 0, 0, 1);
     ball.position.copy(initBallPos);
     ballPosition.copy(initBallPos);
@@ -195,11 +289,11 @@ function animate() {
     requestAnimationFrame(animate);
     //store the last 10 deltas to check the frame rate
     let dt = clock.getDelta();
-    lastDeltas.enqueue(dt);
-    if (lastDeltas.length > 10) {
-        lastDeltas.dequeue();
-    }
-    checkFramerate();
+    //lastDeltas.enqueue(dt);
+    //if (lastDeltas.length > 10) {
+    //    lastDeltas.dequeue();
+    //}
+    //checkFramerate();
 
     if (state == State.Waiting) {
         ball.position.copy(ballPosition);
@@ -299,7 +393,7 @@ function timerFunction() {
     }
     else {
         setState(State.Finished);
-        sendScore();
+        //sendScore();
         parent.gameFinished(score);
     }
 }
@@ -317,6 +411,201 @@ function setState(newState) {
             break;
     }
     state = newState;
+}
+
+/*
+Input
+*/
+function initInput() {
+    if (isMobile) {
+        console.log("Is mobile")
+        window.addEventListener('touchmove', onPointerMove, false);
+        window.addEventListener('touchstart', onTouchDown, false);
+        window.addEventListener('touchend', onTouchUp, false);
+    }
+    else {
+        console.log("Not mobile")
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointerleave', onPointerUp);
+    }
+}
+
+function onPointerDown(event) {
+    if (state != State.Waiting) {
+        return;
+    }
+    setState(State.Down);
+    clickMouseCoords.set(
+        (event.clientX / window.innerWidth) * 2 - 1,
+        - (event.clientY / window.innerHeight) * 2 + 1
+    );
+}
+
+function onTouchDown(event) {
+    if (state != State.Waiting) {
+        return;
+    }
+    setState(State.Down);
+    clickMouseCoords.set(
+        (event.targetTouches[0].clientX / window.innerWidth) * 2 - 1,
+        - (event.targetTouches[0].clientY / window.innerHeight) * 2 + 1
+    );
+}
+
+function onPointerUp(event) {
+    if (state != State.Dragging && state != State.Down) {
+        return;
+    }
+    endClickMouseCoords.set(
+        (event.clientX / window.innerWidth) * 2 - 1,
+        - (event.clientY / window.innerHeight) * 2 + 1
+    );
+    launchBall();
+}
+
+function onTouchUp(event) {
+    if (state != State.Dragging && state != State.Down) {
+        return;
+    }
+    endClickMouseCoords.set(
+        (event.changedTouches[0].clientX / window.innerWidth) * 2 - 1,
+        - (event.changedTouches[0].clientY / window.innerHeight) * 2 + 1
+    );
+    launchBall();
+}
+
+function onPointerMove(event) {
+    if (state != State.Down) {
+        return;
+    }
+    setState(State.Dragging);
+}
+
+/*
+Connections
+*/
+function getToken() {
+    var data = JSON.stringify({
+        "email": "i@deusens.com",
+        "password": "123456"
+    });
+
+    var xhr = new XMLHttpRequest();
+    xhr.withCredentials = true;
+
+    xhr.addEventListener("readystatechange", function () {
+        if (this.readyState === 4) {
+            console.log(this.responseText);
+        }
+    });
+
+    xhr.open("POST", "https://casademont.deusens.com:8055/auth/login");
+    xhr.setRequestHeader("Content-Type", "application/json");
+
+    xhr.send(data);
+
+    xhr.onload = function () {
+        token = JSON.parse(xhr.response);
+    };
+
+    xhr.onerror = function () { // only triggers if the request couldn't be made at all
+        console.log("Error getting token");
+    };
+}
+
+function sendScore() {
+    var data = JSON.stringify({
+        "resultado": score
+    });
+
+    var xhr = new XMLHttpRequest();
+    xhr.withCredentials = true;
+
+    xhr.addEventListener("readystatechange", function () {
+        if (this.readyState === 4) {
+            console.log(this.responseText);
+        }
+    });
+
+    xhr.open("PATCH", "https://casademont.deusens.com:8055/items/ranking/" + idUser);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.setRequestHeader("Authorization", "Bearer " + token.data.access_token);
+
+    xhr.send(data);
+
+    xhr.onload = function () {
+        console.log("Score send");
+    };
+
+    xhr.onerror = function () { // only triggers if the request couldn't be made at all
+        console.log("Error sending score");
+    };
+}
+
+
+/*
+Creator
+*/
+function createParalellepipedWithPhysics(sx, sy, sz, mass, pos, quat, material, name) {
+    const object = new Physijs.BoxMesh(new THREE.BoxGeometry(sx, sy, sz, 1, 1, 1), material, mass);
+    object.position.copy(pos);
+    object.rotation.setFromQuaternion(quat);
+    object.name = name;
+    scene.add(object);
+    object.receiveShadow = true;
+    return object;
+}
+
+function createCylinder(infRad, supRad, height, divisions, mass, pos, euler, material, open) {
+    const object = new Physijs.CylinderMesh(
+        new THREE.CylinderGeometry(infRad, supRad, height, divisions, 1, open),
+        material, mass);
+    object.position.copy(pos);
+    object.rotation.copy(euler);
+    return object;
+}
+
+function createCylinderNotPhysic(infRad, supRad, height, divisions, pos, euler, material, open) {
+    const object = new THREE.Mesh(new THREE.CylinderGeometry(infRad, supRad, height, divisions, 1, open),
+        material);
+    object.position.copy(pos);
+    object.rotation.copy(euler);
+    return object;
+}
+
+//creates a toroid
+function createTorus(extRadius, intRadius, pos, quat, material) {
+    const fragments = 32;
+    //the visible part has no physics
+    torus = new THREE.Mesh(new THREE.TorusGeometry(extRadius, intRadius, fragments, fragments), material);
+    torus.position.copy(pos);
+    torus.rotation.setFromQuaternion(quat);
+
+    const fragSize = 2 * Math.PI * extRadius / fragments * 1.1;
+    const baseVector = new THREE.Vector3(0, 0, extRadius - 0.005);
+    const yVector = new THREE.Vector3(0, 1, 0);
+    const angle = (2 * Math.PI) / fragments;
+    const cylinderGeometry = new THREE.CylinderGeometry(intRadius, intRadius, fragSize, fragments);
+    const cylinderMaterial = new THREE.MeshPhongMaterial({ color: 0xCCCCCC });
+    //the physical part is invisible, there are cylinders in a circle to simulate a toroid
+    for (let index = 0; index < fragments; index++) {
+        let object = new Physijs.CylinderMesh(cylinderGeometry, cylinderMaterial, 0);
+        object.visible = false;
+        object.position.copy(pos);
+        if (index != 0) {
+            object.position.add(baseVector.applyAxisAngle(yVector, angle));
+        }
+        else {
+            object.position.add(baseVector);
+        }
+        object.rotation.setFromQuaternion(quat.setFromEuler(new THREE.Euler(0, angle * index, Math.PI / 2, 0, 'XYZ')));
+        scene.add(object);
+        object.name = "ringPart" + index;
+        freezeObject(object);
+    }
+    return torus;
 }
 
 function Queue() {

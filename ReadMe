@@ -14,4 +14,7 @@ colocados a lo largo del toroide.
 
 El estilo del medidor esta hecho con css pero el movimiento esta hecho con js.
 
-la pagina recibe el usuario
+la pagina recibe el usuario con la función setUser. esta función es llamada desde flutter
+para ello hay que indicarle a flutter que el juego ya esta cargado, para ello hay que llamar la función gameLoaded
+esta función esta definidaen flutter 
+pasa lo mismo con la función gameFinished, que es llamada al acabar el juego, y comunica a flutter la puntuación.
