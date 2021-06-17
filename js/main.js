@@ -31,6 +31,9 @@ const pos = new THREE.Vector3(0, 1.8, 2.5);
 const initBallPos = new THREE.Vector3(0, .5, 0);
 const torusPosition = new THREE.Vector3(0, 2.015, -2);
 const G = new THREE.Vector3(0, -20, 0);
+const leftMarkerPos = new THREE.Vector3(-0.5, 2.74, -2.32);
+const centralMarkerPos = new THREE.Vector3(0, 2.74, -2.32);
+const rightMarkerPos = new THREE.Vector3(0.5, 2.74, -2.32);
 
 const maxDrag = 2;
 const timeToReallow = 5000;//ms
@@ -72,6 +75,7 @@ let forceModifier = 1;
 let token;
 let idUser;
 let ballModel;
+let playTime = 30;
 
 let wallB, wallR, wallL, ground, backboard, incBorderL, incBorderR, borderL, borderR, ground2;
 
@@ -157,10 +161,12 @@ function createObjects() {
     createColliders();
 
     //basket
-    createrBasket();
+    createBasket();
 
     createBall();
     freezeObject(ball);
+
+    loadFont();
 }
 
 function loadModels() {
@@ -352,8 +358,8 @@ function checkGoal() {
         goal = true;
         let thisScore = backboardCollision ? 2 : 3;
         score += thisScore;
-        currentScore.innerHTML = thisScore;
-        finalScore.innerHTML = score;
+        refreshText(1, thisScore);
+        refreshText(0, score);
         window.clearTimeout(ballResetTimeout);
         setTimeout(clearScore, 1000);
         ballResetTimeout = setTimeout(resetBall, 1000);
@@ -362,7 +368,7 @@ function checkGoal() {
 }
 
 function clearScore() {
-    currentScore.innerHTML = 0;
+    refreshText(1, 0);
 }
 
 function reAllow() {
@@ -387,8 +393,9 @@ function launchBall() {
 
 //change the timer each second, when it reaches 0, it notifies the end
 function timerFunction() {
-    timeLeft.innerHTML = timeLeft.innerHTML - 1;
-    if (timeLeft.innerHTML > 0) {
+    playTime--;
+    refreshText(2, "" + playTime);
+    if (playTime > 0) {
         setTimeout(timerFunction, 1000);
     }
     else {
@@ -625,4 +632,88 @@ Queue.prototype.peek = function () {
 };
 Queue.prototype.length = function () {
     return this.elements.length;
+}
+
+var group1, group2, group3, textMesh1, textMesh2, textMesh3, textGeo, material;
+var groups, textMeshes = [textMesh1, textMesh2, textMesh3];
+
+var firstLetter = true;
+var font;
+var height = .01,
+    size = 0.2,
+
+    curveSegments = 4,
+
+    fontName = "Digital-7", // helvetiker, optimer, gentilis, droid sans, droid serif
+    fontWeight = "normal", // normal bold
+    style = "normal";
+function loadFont() {
+
+    var loader = new THREE.FontLoader();
+    loader.load('fonts/Digital-7_Regular.json', function (response) {
+
+        font = response;
+
+        initTextMarkers();
+
+    });
+
+}
+
+function initTextMarkers() {
+    group1 = new THREE.Group();
+    group2 = new THREE.Group();
+    group3 = new THREE.Group();
+    groups = [group1, group2, group3];
+    group1.position.copy(leftMarkerPos);
+    group2.position.copy(centralMarkerPos);
+    group3.position.copy(rightMarkerPos);
+    scene.add(group1);
+    scene.add(group2);
+    scene.add(group3);
+    refreshText(0, "0");
+    refreshText(1, "0");
+    refreshText(2, "30");
+}
+
+function createText(text, textMesh) {
+    let material = new THREE.MeshPhongMaterial({ color: 0xff0000, flatShading: true });
+
+    textGeo = new THREE.TextGeometry(text, {
+
+        font: font,
+
+        size: size,
+        height: height,
+        curveSegments: curveSegments
+
+    });
+
+    textGeo.computeBoundingBox();
+    textGeo.computeVertexNormals();
+
+
+
+    var centerOffset = -0.5 * (textGeo.boundingBox.max.x - textGeo.boundingBox.min.x);
+
+    textMesh = new THREE.Mesh(textGeo, material);
+
+    textMesh.position.x = centerOffset;
+
+    textMesh.rotation.x = 0;
+    textMesh.rotation.y = Math.PI * 2;
+
+    return textMesh;
+}
+
+function refreshText(index, text) {
+
+    if (textMeshes[index] != undefined) {
+        groups[index].remove(textMeshes[index]);
+    }
+
+    if (!text) return;
+    textMeshes[index] = createText(text, textMeshes[index]);
+    groups[index].add(textMeshes[index]);
+
 }
