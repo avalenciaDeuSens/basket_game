@@ -45,9 +45,6 @@ const maxCollisions = 3;
 
 const isMobile = navigator.userAgent.match(/(iPhone|iPod|iPad|Android|BlackBerry)/);
 
-const finalScore = document.getElementById("totalScore");
-const currentScore = document.getElementById("score");
-const timeLeft = document.getElementById("timeLeft");
 const forceSelector = document.getElementById("forceSelector");
 
 //const loader = new FBXLoader();
@@ -358,8 +355,8 @@ function checkGoal() {
         goal = true;
         let thisScore = backboardCollision ? 2 : 3;
         score += thisScore;
-        refreshText(1, thisScore);
-        refreshText(0, score);
+        refreshText(1, "" + thisScore);
+        refreshText(0, "" + score);
         window.clearTimeout(ballResetTimeout);
         setTimeout(clearScore, 1000);
         ballResetTimeout = setTimeout(resetBall, 1000);
@@ -368,7 +365,7 @@ function checkGoal() {
 }
 
 function clearScore() {
-    refreshText(1, 0);
+    refreshText(1, "" + 0);
 }
 
 function reAllow() {
@@ -586,7 +583,8 @@ function createCylinderNotPhysic(infRad, supRad, height, divisions, pos, euler, 
 function createTorus(extRadius, intRadius, pos, quat, material) {
     const fragments = 32;
     //the visible part has no physics
-    torus = new THREE.Mesh(new THREE.TorusGeometry(extRadius, intRadius, fragments, fragments), material);
+    //torus = new THREE.Mesh(new THREE.TorusGeometry(extRadius, intRadius, fragments, fragments), material);
+    torus = new THREE.Group();
     torus.position.copy(pos);
     torus.rotation.setFromQuaternion(quat);
 
